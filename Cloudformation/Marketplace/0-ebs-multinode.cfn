@@ -17,12 +17,10 @@
 		}    
     },
     "Mappings": {
-        "Mappings": {
             "SubnetMap" : {
                 "vpc" : {"initial" : "10.20.32.0/21"},
                 "aza" : {"priv": "10.20.32.128/25", "pub" : "10.20.32.0/25"},
-                "azb" : {"priv": "10.20.33.128/25", "pub" : "10.20.33.0/25"}
-            }
+                "azb" : {"priv": "10.20.33.128/25", "pub" : "10.20.33.0/25"}}
     },
     "Conditions": {
 
@@ -198,37 +196,6 @@
 				},
 				"SubnetId": {
 					"Ref": "privb"
-				}
-			}
-		},
-		"ServerPolicy": {
-			"Type": "AWS::IAM::ManagedPolicy",
-			"Properties": {
-				"PolicyDocument": {
-					"Version": "2012-10-17",
-					"Statement": [{
-						"Effect": "Allow",
-						"Action": [
-							"ec2:Describe*",
-							"ec2:CreateTags"
-						],
-						"Resource": "*"
-					}, {
-						"Effect": "Allow",
-						"Action": [
-							"cloudwatch:PutMetricData"
-						],
-						"Resource": "*"
-					}, {
-						"Effect": "Allow",
-						"Action": [
-							"route53:ChangeResourceRecordSets",
-							"route53:GetChange",
-							"route53:ListResourceRecordSets",
-							"route53:ListHostedZones"
-						],
-						"Resource": "*"
-					}]
 				}
 			}
 		},

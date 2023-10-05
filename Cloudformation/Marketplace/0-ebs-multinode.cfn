@@ -265,6 +265,60 @@
 				}
 			}
 		},
+		"Ec2Endpoint": {
+			"Type": "AWS::EC2::VPCEndpoint",
+			"Properties": {
+                "VpcEndpointType": "Interface",
+				"ServiceName": {
+					"Fn::Join": ["", ["com.amazonaws.", {
+						"Ref": "AWS::Region"
+					}, ".ec2"]]
+				},
+				"VpcId": {
+					"Ref": "VPC"
+				},
+                "SubnetIds" : [
+                    {
+                        "Ref" : "priva"
+                    },
+                    {
+                        "Ref" : "privb"
+                    } 
+                ],
+                "SecurityGroupIds" : [
+                    {
+                        "Ref" : "endpointSG"
+                    }
+                ]
+			}
+		},
+		"ssmEndpoint": {
+			"Type": "AWS::EC2::VPCEndpoint",
+			"Properties": {
+                "VpcEndpointType": "Interface",
+				"ServiceName": {
+					"Fn::Join": ["", ["com.amazonaws.", {
+						"Ref": "AWS::Region"
+					}, ".ssm"]]
+				},
+				"VpcId": {
+					"Ref": "VPC"
+				},
+                "SubnetIds" : [
+                    {
+                        "Ref" : "priva"
+                    },
+                    {
+                        "Ref" : "privb"
+                    } 
+                ],
+                "SecurityGroupIds" : [
+                    {
+                        "Ref" : "endpointSG"
+                    }
+                ]
+			}
+		},
 		"puba": {
 			"Type": "AWS::EC2::Subnet",
 			"Properties": {
@@ -444,8 +498,155 @@
 					"Ref": "pubb"
 				}
 			}
+		},
+		"oracleHostRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Statement": [{
+						"Effect": "Allow",
+						"Principal": {
+							"Service": ["ec2.amazonaws.com"]
+						},
+						"Action": ["sts:AssumeRole"]
+					}]
+				},
+				"ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+                    "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"],
+				"RoleName": {
+					"Fn::Sub": "${VPCStackName}-instance-role"
+				}
+			}
+		},
+		"oracleHostProfile": {
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [{
+					"Ref": "oracleHostRole"
+				}]
+			}
+		},
+		"databaseSG": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Sub": "${VPCStackName}-dbSG"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"Description": "DB port from application",
+					"FromPort": "1522",
+					"ToPort": "1522",
+					"SourceSecurityGroupId": {
+						"Ref": "appSG"
+					}
+				}],
+				"SecurityGroupEgress": [{
+					"IpProtocol": "-1",
+					"FromPort": "-1",
+					"ToPort": "-1",
+					"CidrIp": 
+                    { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+				}],
+				"VpcId": { "Ref": "VPC" },
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${VPCStackName}-dbSG"
+					}
+				}]
+			}
+		},
+		"appSG": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Sub": "${VPCStackName}-appSG"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"Description": "DB port from application",
+					"FromPort": "8001",
+					"ToPort": "8001",
+					"SourceSecurityGroupId": {
+						"Ref": "appLBSG"
+					}
+				}],
+				"SecurityGroupEgress": [{
+					"IpProtocol": "-1",
+					"FromPort": "-1",
+					"ToPort": "-1",
+					"CidrIp": 
+                    { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+				}],
+				"VpcId": { "Ref": "VPC" },
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${VPCStackName}-appSG"
+					}
+				}]
+			}
+		},
+		"appLBSG": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Sub": "${VPCStackName}-appLBSG"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"Description": "DB port from application",
+					"FromPort": "443",
+					"ToPort": "443",
+					"CidrIp": "0.0.0.0/0"
+				}],
+				"SecurityGroupEgress": [{
+					"IpProtocol": "-1",
+					"FromPort": "-1",
+					"ToPort": "-1",
+					"CidrIp": 
+                    { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+				}],
+				"VpcId": { "Ref": "VPC" },
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${VPCStackName}-appLBSG"
+					}
+				}]
+			}
+		},
+		"endpointSG": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Sub": "${VPCStackName}-endpointSG"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"Description": "DB port from application",
+					"FromPort": "443",
+					"ToPort": "443",
+					"CidrIp": { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+				}],
+				"SecurityGroupEgress": [{
+					"IpProtocol": "-1",
+					"FromPort": "-1",
+					"ToPort": "-1",
+					"CidrIp": { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+				}],
+				"VpcId": { "Ref": "VPC" },
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${VPCStackName}-endpointSG"
+					}
+				}]
+			}
 		}
-
     },
     "Outputs": {
 

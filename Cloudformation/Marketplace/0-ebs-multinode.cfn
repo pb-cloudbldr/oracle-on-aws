@@ -464,7 +464,6 @@
 
 			}
 		},
-
 		"pubrtbassocb": {
 			"Type": "AWS::EC2::SubnetRouteTableAssociation",
 			"Properties": {

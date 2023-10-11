@@ -803,7 +803,61 @@
               },
               "TTL": "300"
             }
-          }
+          },
+			"appLoadBalancer": {
+				"Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+				"Properties" : {
+					"Name" : {
+						"Fn::Sub": "${hostnamePattern}-LB"
+					},
+					"Subnets" : [{ "Ref" : "puba" }, { "Ref" : "pubb" }],
+					"SecurityGroups" : [ {"Ref" : "appLBSG"} ],
+					"Tags" : [ { "Key" : "Name", "Value" : {
+						"Fn::Sub": "${hostnamePattern}.${DNSName}"
+					}} ]
+				}
+			},
+			"appLoadBalancerListener": {
+				"Type" : "AWS::ElasticLoadBalancingV2::Listener",
+				"Properties" : {
+					"LoadBalancerArn" : { "Ref" : "appLoadBalancer" },
+					"Port" : 80,
+					"Protocol" : "HTTP",
+					"DefaultActions" : [ {
+						"Type" : "forward",
+						"TargetGroupArn" : { "Ref" : "appLoadBalancerTargetGroup" }
+					} ]
+				}
+			},
+			"appLoadBalancerTargetGroup" : {
+				"Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+				"Properties" : {
+					"Name" : {
+						"Fn::Sub": "${hostnamePattern}-TG"
+					},
+					"VpcId" : { "Ref" : "VPC" },
+					"Port" : "8001",
+					"Protocol" : "HTTP",
+					"TargetGroupAttributes" : [ { "Key" : "stickiness.enabled", "Value" : true }, { "Key" : "stickiness.type", "Value" : "lb_cookie" } ],
+					"Targets" : [ { "Id" : { "Ref" : "appHost1" } ,  "Port" : "8001" } ]
+				}
+			},
+			"appLoadBalancerPublicDNS": {
+				"Type": "AWS::Route53::RecordSet",
+				"Properties": {
+				  "Name": { "Fn::Sub": "${hostnamePattern}.${DNSName}" },
+				  "Type": "A",
+				  "AliasTarget": {
+						"DNSName" : { "Fn::GetAtt" : ["appLoadBalancer","DNSName"] },
+						"HostedZoneId" : { "Fn::GetAtt" : ["appLoadBalancer", "CanonicalHostedZoneID"] },
+						"EvaluateTargetHealth": false
+					},
+				  "Comment": "DNS record for Load Balancer",
+				  "HostedZoneId": {
+					"Ref" : "PubDNS"
+				  }
+				}
+			  }
     },
     "Outputs": {
 

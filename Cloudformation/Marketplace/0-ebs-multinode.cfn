@@ -26,17 +26,24 @@
 			"Default" : "t3.large",
 			"Type": "String"
         },
+		"appSize": {
+			"Description": "instance class used for Application instance",
+			"Default" : "t3.large",
+			"Type": "String"
+        },
 		"hostnamePattern": {
 			"Description": "Hostanme Pattern used on App and DB",
 			"Default" : "cdvisd01",
 			"Type": "String"
-        }
+        },
+		"VPCCIDR": {
+			"Description" : "Class C address block for the VPC",
+			"Default" : "10.20.32.0",
+			"Type" : "String"
+		}
     },
     "Mappings": {
-            "SubnetMap" : {
-                "vpc" : {"initial" : "10.20.32.0/21"},
-                "aza" : {"priv": "10.20.32.128/25", "pub" : "10.20.32.0/25"},
-                "azb" : {"priv": "10.20.33.128/25", "pub" : "10.20.33.0/25"}}
+
     },
     "Conditions": {
 
@@ -45,7 +52,7 @@
 		"VPC": {
 			"Type": "AWS::EC2::VPC",
 			"Properties": {
-				"CidrBlock": { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]},
+				"CidrBlock": { "Fn::Sub": "${VPCCIDR}/24" },
 				"EnableDnsSupport": "True",
 				"EnableDnsHostnames": "True",
 				"InstanceTenancy": "default",
@@ -73,7 +80,7 @@
 				"VpcId": {
 					"Ref": "VPC"
 				},
-				"CidrBlock": { "Fn::FindInMap" : [ "SubnetMap", "aza", "priv" ]},
+				"CidrBlock": { "Fn::Select": [ 0, { "Fn::Cidr": [ { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }, 4, 6 ] } ] },
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
@@ -98,7 +105,7 @@
 				"VpcId": {
 					"Ref": "VPC"
 				},
-				"CidrBlock": { "Fn::FindInMap" : [ "SubnetMap", "azb", "priv" ]},
+				"CidrBlock": { "Fn::Select": [ 1, { "Fn::Cidr": [ { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }, 4, 6 ] } ] },
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
@@ -378,7 +385,7 @@
 				"VpcId": {
 					"Ref": "VPC"
 				},
-				"CidrBlock": { "Fn::FindInMap" : [ "SubnetMap", "aza", "pub" ]},
+				"CidrBlock": { "Fn::Select": [ 2, { "Fn::Cidr": [ { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }, 4, 6 ] } ] },
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
@@ -403,7 +410,7 @@
 				"VpcId": {
 					"Ref": "VPC"
 				},
-				"CidrBlock": { "Fn::FindInMap" : [ "SubnetMap", "azb", "pub" ]},
+				"CidrBlock": { "Fn::Select": [ 3, { "Fn::Cidr": [ { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }, 4, 6 ] } ] },
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
@@ -592,7 +599,7 @@
 					"FromPort": "-1",
 					"ToPort": "-1",
 					"Description" : "Allow the database hosts to access resources wihtin the VPC",
-					"CidrIp":{ "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+					"CidrIp":{ "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }
 				}],
 				"VpcId": { "Ref": "VPC" },
 				"Tags": [{
@@ -623,7 +630,7 @@
 					"FromPort": "-1",
 					"ToPort": "-1",
 					"Description" : "Allow the application hosts to access resources wihtin the VPC",
-					"CidrIp":  { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+					"CidrIp": { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }
 				}],
 				"VpcId": { "Ref": "VPC" },
 				"Tags": [{
@@ -652,8 +659,7 @@
 					"FromPort": "-1",
 					"ToPort": "-1",
 					"Description" : "Allow Load Balancer to use VPC resources",
-					"CidrIp": 
-                    { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+					"CidrIp": { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }
 				}],
 				"VpcId": { "Ref": "VPC" },
 				"Tags": [{
@@ -675,13 +681,13 @@
 					"Description": "DB port from application",
 					"FromPort": "443",
 					"ToPort": "443",
-					"CidrIp": { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+					"CidrIp": { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }
 				}],
 				"SecurityGroupEgress": [{
 					"IpProtocol": "-1",
 					"FromPort": "-1",
 					"ToPort": "-1",
-					"CidrIp": { "Fn::FindInMap" : [ "SubnetMap", "vpc", "initial" ]}
+					"CidrIp": { "Fn::GetAtt" : [ "VPC", "CidrBlock" ] }
 				}],
 				"VpcId": { "Ref": "VPC" },
 				"Tags": [{
@@ -738,7 +744,7 @@
 				"DisableApiTermination": "false",
 				"SubnetId": {"Ref" : "priva"},
 				"ImageId": {"Ref": "AMI"},
-				"InstanceType": {"Ref": "dbSize"},
+				"InstanceType": {"Ref": "appSize"},
 				"BlockDeviceMappings" : [{
                 	"DeviceName" : "/dev/sda1",
                     "Ebs" : {
@@ -858,6 +864,7 @@
 				  }
 				}
 			  }
+
     },
     "Outputs": {
 

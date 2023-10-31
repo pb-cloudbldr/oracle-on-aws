@@ -292,6 +292,7 @@
 			"Type": "AWS::EC2::VPCEndpoint",
 			"Properties": {
                 "VpcEndpointType": "Interface",
+				"PrivateDnsEnabled" : "true",
 				"ServiceName": {
 					"Fn::Join": ["", ["com.amazonaws.", {
 						"Ref": "AWS::Region"

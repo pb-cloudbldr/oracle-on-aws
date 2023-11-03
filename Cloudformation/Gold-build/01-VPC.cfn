@@ -1061,5 +1061,169 @@
             }
         }
     },
-    "Outputs": {}
+    "Outputs": {
+		"VPC": {
+			"Value": {
+				"Ref": "VPC"
+			},
+			"Description": "VPC Id",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "VPC"]]
+				}
+			}
+        },
+		"VPCCidr": {
+			"Value": { "Fn::GetAtt" :  ["VPC", "CidrBlock"] },
+			"Description": "CIDR Block for the VPC",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "VPCCidr"]]
+				}
+			}
+		},
+		"RootVolumeID": {
+			"Value": { "Fn::GetAtt" :  ["FileStorageService", "RootVolumeId"] },
+			"Description": "Root Volume ID of the Storage service for creating application volumes",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "RootVolumeID"]]
+				}
+			}
+		},
+		"StorageSG": {
+			"Description": "Security Group to allow access to the storage service",
+			"Value": {
+				"Fn::GetAtt": ["storaSG", "GroupId"]
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${VPCStack}storageSG"
+				}
+			}
+		},
+		"priva": {
+			"Value": {
+				"Ref": "priva"
+			},
+			"Description": "Primary Private Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Priv-aza"]]
+				}
+			}
+		},
+		"privb": {
+			"Value": {
+				"Ref": "privb"
+			},
+			"Description": "Secondary Private Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Priv-azb"]]
+				}
+			}
+		},
+		"privc": {
+			"Value": {
+				"Ref": "priva"
+			},
+			"Description": "Tertiary Private Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Priv-azc"]]
+				}
+			}
+		},
+		"privrtb": {
+			"Value": {
+				"Ref": "privrtb"
+			},
+			"Description": "Private Subnet Route Table",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Ref": "VPCStackName"
+					}, "PrivateRTB"]]
+				}
+			}
+		},
+		"puba": {
+			"Value": {
+				"Ref": "puba"
+			},
+			"Description": "Primary Public Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Pub-aza"]]
+				}
+			}
+		},
+		"pubb": {
+			"Value": {
+				"Ref": "pubb"
+			},
+			"Description": "Secondary Public Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Pub-azb"]]
+				}
+			}
+		},
+		"pubc": {
+			"Value": {
+				"Ref": "pubb"
+			},
+			"Description": "Tertiary Public Subnet",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "Pub-azc"]]
+				}
+			}
+		},
+		"PrivDNS": {
+			"Value": {
+				"Ref": "PrivDNS"
+			},
+			"Description": "Private DNS ZONE ID",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "PrivateDNS"]]
+				}
+			}
+		},
+		"PubDNS": {
+			"Value": {
+				"Ref": "PubDNS"
+			},
+			"Description": "Public DNS ZONE ID",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "PublicDNS"]]
+				}
+			}
+		}
+	}
 }

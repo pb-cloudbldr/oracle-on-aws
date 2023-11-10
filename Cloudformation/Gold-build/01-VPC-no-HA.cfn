@@ -8,7 +8,7 @@
             "Default": "MPLACE",
             "Type": "String"
         },
-        "DNSName": {
+        "DomainName": {
             "Description": "Private domain for VPC",
             "Default": "oracle.cloudbldr.uk",
             "Type": "String"
@@ -348,7 +348,7 @@
             "Type": "AWS::Route53::HostedZone",
             "Properties": {
                 "Name": {
-                    "Ref": "DNSName"
+                    "Ref": "DomainName"
                 },
                 "VPCs": [
                     {
@@ -377,7 +377,7 @@
                     {
                         "Key": "Name",
                         "Value": {
-                            "Ref": "DNSName"
+                            "Ref": "DomainName"
                         }
                     }
                 ]
@@ -387,7 +387,7 @@
             "Type": "AWS::Route53::HostedZone",
             "Properties": {
                 "Name": {
-                    "Ref": "DNSName"
+                    "Ref": "DomainName"
                 },
                 "HostedZoneConfig": {
                     "Comment": {
@@ -406,7 +406,7 @@
                     {
                         "Key": "Name",
                         "Value": {
-                            "Ref": "DNSName"
+                            "Ref": "DomainName"
                         }
                     }
                 ]
@@ -1028,9 +1028,6 @@
                 "SubnetIds": [
                     {
                         "Ref": "priva"
-                    },
-					{
-                        "Ref": "privb"
                     }
                 ],
                 "SecurityGroupIds": [
@@ -1043,13 +1040,7 @@
                     "DiskIopsConfiguration": {
                         "Mode": "AUTOMATIC"
                     },
-                    "PreferredSubnetId": {
-                        "Ref": "priva"
-                    },
-                    "RouteTableIds": [
-                        { "Ref" : "privrtb" }
-                    ],
-                    "ThroughputCapacity": 320,
+                    "ThroughputCapacity": 256,
                     "WeeklyMaintenanceStartTime": "4:16:30"
                 },
                 "Tags": [
@@ -1094,6 +1085,17 @@
 					"Fn::Join": ["", [{
 						"Fn::Sub": "${AWS::StackName}"
 					}, "RootVolumeID"]]
+				}
+			}
+		},
+        "FSDNSName": {
+			"Value": { "Fn::GetAtt" :  ["FileStorageService", "DNSName"] },
+			"Description": "Hostname of the Storage service for use in connect strings",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "FSDNSName"]]
 				}
 			}
 		},
@@ -1224,6 +1226,19 @@
 					"Fn::Join": ["", [{
 						"Fn::Sub": "${AWS::StackName}"
 					}, "PublicDNS"]]
+				}
+			}
+		},
+        "DomainName": {
+			"Value": {
+                "Ref": "DomainName"
+            },
+			"Description": "Sub-domain used for the VPC",
+			"Export": {
+				"Name": {
+					"Fn::Join": ["", [{
+						"Fn::Sub": "${AWS::StackName}"
+					}, "DomainName"]]
 				}
 			}
 		}

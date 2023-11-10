@@ -36,7 +36,6 @@
 			"Default" : "cdvisd01",
 			"Type": "String"
         },
-// This is a comment to see if cloudformation takes "comments"
 		"VPCCIDR": {
 			"Description" : "Class C address block for the VPC",
 			"Default" : "10.20.32.0",

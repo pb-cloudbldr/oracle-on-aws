@@ -1,456 +1,722 @@
 {
-"AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "",
-    "Metadata": {
-		"environmentName": {
-			"Description": "Oracle Environment we are creating",
-			"Default" : "dev1",
-			"Type": "String"
-		},
-        "targetVPCStack": {
-			"Description": "The VPC cFn stack we are going to deploy to",
-			"Default" : "MPLACE",
-			"Type": "String"
-		},
-		"AMI": {
-			"Description": "AMI used to laucnh the instances",
-			"Default" : "ami-0107fd7e5158b0161",
-			"Type": "String"
-        },
-		"dbSize": {
-			"Description": "instance class used for Database instance",
-			"Default" : "t3.large",
-			"Type": "String"
-        },
-		"appSize": {
-			"Description": "instance class used for Application instance",
-			"Default" : "t3.large",
-			"Type": "String"
-        },
-		"hostnamePattern": {
-			"Description": "Hostanme Pattern used on App and DB",
-			"Default" : "cdvisd01",
-			"Type": "String"
-        },
-		"targetAZ": {
-			"Description": "Availability Zone to deploy the environment to",
-			"Default" : "aza",
-			"Type": "String"
-        }
-    },
-    "Parameters": {
+    "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "",
+        "Metadata": {
     
-    },
-    "Mappings": {
-
-    },
-    "Conditions": {
-
-    },
-    "Resources": {
-        "oracleHostRole": {
-			"Type": "AWS::IAM::Role",
-			"Properties": {
-				"AssumeRolePolicyDocument": {
-					"Statement": [{
-						"Effect": "Allow",
-						"Principal": {
-							"Service": ["ec2.amazonaws.com"]
-						},
-						"Action": ["sts:AssumeRole"]
-					}]
-				},
-				"ManagedPolicyArns": [
-                    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
-                    "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"],
-				"RoleName": {
-					"Fn::Sub": "${environmentName}-instance-role"
-				}
-			}
-		},
-		"oracleHostProfile": {
-			"Type": "AWS::IAM::InstanceProfile",
-			"Properties": {
-				"Path": "/",
-				"Roles": [{
-					"Ref": "oracleHostRole"
-				}]
-			}
-		},
-		"databaseSG": {
-			"Type": "AWS::EC2::SecurityGroup",
-			"Properties": {
-				"GroupDescription": {
-					"Fn::Sub": "${environmentName}-dbSG"
-				},
-				"SecurityGroupIngress": [{
-					"IpProtocol": "tcp",
-					"Description": "DB port from application",
-					"FromPort": "1522",
-					"ToPort": "1522",
-					"SourceSecurityGroupId": {
-						"Ref": "appSG"
-					}
-				}],
-				"SecurityGroupEgress": [{
-					"IpProtocol": "-1",
-					"FromPort": "-1",
-					"ToPort": "-1",
-					"Description" : "Allow the database hosts to access resources wihtin the VPC",
-					"CidrIp": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPCCidr" } }
-				}],
-				"VpcId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPC" } },
-				"Tags": [{
-					"Key": "Name",
-					"Value": {
-						"Fn::Sub": "${environmentName}-dbSG"
-					}
-				}]
-			}
-		},
-		"appSG": {
-			"Type": "AWS::EC2::SecurityGroup",
-			"Properties": {
-				"GroupDescription": {
-					"Fn::Sub": "${environmentName}-appSG"
-				},
-				"SecurityGroupIngress": [{
-					"IpProtocol": "tcp",
-					"Description": "Allow the application port to be accessed from the Load Balancer",
-					"FromPort": "8001",
-					"ToPort": "8001",
-					"SourceSecurityGroupId": {
-						"Ref": "appLBSG"
-					}
-				}],
-				"SecurityGroupEgress": [{
-					"IpProtocol": "-1",
-					"FromPort": "-1",
-					"ToPort": "-1",
-					"Description" : "Allow the application hosts to access resources wihtin the VPC",
-					"CidrIp": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPCCidr" } }
-				}],
-				"VpcId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPC" } },
-				"Tags": [{
-					"Key": "Name",
-					"Value": {
-						"Fn::Sub": "${environmentName}-appSG"
-					}
-				}]
-			}
-		},
-		"appLBSG": {
-			"Type": "AWS::EC2::SecurityGroup",
-			"Properties": {
-				"GroupDescription": {
-					"Fn::Sub": "${environmentName}-appLBSG"
-				},
-				"SecurityGroupIngress": [{
-					"IpProtocol": "tcp",
-					"Description": "Allow the load balancer to be accessed from anywhere",
-					"FromPort": "443",
-					"ToPort": "443",
-					"CidrIp":  "0.0.0.0/0"
-				}],
-				"SecurityGroupEgress": [{
-					"IpProtocol": "-1",
-					"FromPort": "-1",
-					"ToPort": "-1",
-					"Description" : "Allow Load Balancer to use VPC resources",
-					"CidrIp": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPCCidr" } }
-				}],
-				"VpcId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}VPC" } },
-				"Tags": [{
-					"Key": "Name",
-					"Value": {
-						"Fn::Sub": "${environmentName}-appLBSG"
-					}
-				}]
-			}
-		},
-		"databaseHost1": {
-			"Type": "AWS::EC2::Instance",
-			"Properties": {
-				"KeyName": "cloudbldr-marketplace-london",
-				"DisableApiTermination": "false",
-				"SubnetId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-				"ImageId": {"Ref": "AMI"},
-				"InstanceType": {"Ref": "dbSize"},
-				"BlockDeviceMappings" : [{
-                	"DeviceName" : "/dev/sda1",
-                    "Ebs" : {
-                    	"DeleteOnTermination" : "true",
-                    	"VolumeType" : "gp2"
-                	}
-               	}],
-				"Monitoring": "true",
-				"IamInstanceProfile": { "Ref" : "oracleHostProfile"},
-				"SecurityGroupIds": [ {"Ref" : "databaseSG"}],
-				"Tags": [{
-					"Key": "Name",
-					"Value": {
-						"Fn::Sub": "${hostnamePattern}d1.${DNSName}"
-					}
-				}],
-				"UserData": {
-					"Fn::Base64": {
-						"Fn::Join": [
-							"", [
-								"#!/bin/bash -ex", "\n",
-                                "sudo hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" },"\n",
-								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
-								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\" >> /etc/hosts", "\n",
-								"sudo /usr/sbin/reboot now", "\n"
-							]
-						]
-					}
-				}
-			}
         },
-		"appHost1": {
-			"Type": "AWS::EC2::Instance",
-			"Properties": {
-				"KeyName": "cloudbldr-marketplace-london",
-				"DisableApiTermination": "false",
-				"SubnetId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-				"ImageId": {"Ref": "AMI"},
-				"InstanceType": {"Ref": "appSize"},
-				"BlockDeviceMappings" : [{
-                	"DeviceName" : "/dev/sda1",
-                    "Ebs" : {
-                    	"DeleteOnTermination" : "true",
-                    	"VolumeType" : "gp2"
-                	}
-               	}],
-				"Monitoring": "true",
-				"IamInstanceProfile": { "Ref" : "oracleHostProfile"},
-				"SecurityGroupIds": [ {"Ref" : "appSG"}],
-				"Tags": [{
-					"Key": "Name",
-					"Value": {
-						"Fn::Sub": "${hostnamePattern}a1.${DNSName}"
-					}
-				}],
-				"UserData": {
-					"Fn::Base64": {
-						"Fn::Join": [
-							"", [
-								"#!/bin/bash -ex", "\n",
-                                "sudo /usr/bin/hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\n",
-								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
-								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\" >> /etc/hosts", "\n",
-								"sudo /usr/sbin/reboot now", "\n"
-							]
-						]
-					}
-				}
-			}
+        "Parameters": {
+            "targetVPCStack": {
+                "Description": "Coudformation stack name for VPC we are deploying into",
+                "Default" : "test9",
+                "Type": "String"
+            },
+            "environmentName": {
+                "Description": "VPC Name Prefix for all Objects",
+                "Default" : "DEV1",
+                "Type": "String"
+            },
+            "hostnamePattern": {
+                "Description": "Hostanme Pattern used on App and DB",
+                "Default" : "cdvisd01",
+                "Type": "String"
+            },
+            "AMI": {
+                "Description": "AMI used to laucnh the instances",
+                "Default" : "ami-0107fd7e5158b0161",
+                "Type": "String"
+            },
+            "dbSize": {
+                "Description": "instance class used for Database instance",
+                "Default" : "t3.large",
+                "Type": "String"
+            },
+            "appSize": {
+                "Description": "instance class used for Application instance",
+                "Default" : "t3.large",
+                "Type": "String"
+            }
         },
-		"databaseHost1PrivateDNSEntry": {
-            "Type": "AWS::Route53::RecordSet",
-            "Properties": {
-              "Name": { "Fn::Sub": "${hostnamePattern}d1.${DNSName}" },
-              "Type": "A",
-              "ResourceRecords": [
-                {
-                    "Fn::GetAtt": ["databaseHost1", "PrivateIp"]
+        "Mappings": {
+    
+        },
+        "Conditions": {
+    
+        },
+        "Resources": {
+            "oracleHostRole": {
+                "Type": "AWS::IAM::Role",
+                "Properties": {
+                    "AssumeRolePolicyDocument": {
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": ["ec2.amazonaws.com"]
+                            },
+                            "Action": ["sts:AssumeRole"]
+                        }]
+                    },
+                    "ManagedPolicyArns": [
+                        "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+                        "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"],
+                    "RoleName": {
+                        "Fn::Sub": "${environmentName}-instance-role"
+                    }
                 }
-              ],
-              "Comment": "DNS record for Database Tier Instance",
-              "HostedZoneId": {
-                "Ref" : "PrivDNS"
-              },
-              "TTL": "300"
+            },
+            "oracleHostProfile": {
+                "Type": "AWS::IAM::InstanceProfile",
+                "Properties": {
+                    "Path": "/",
+                    "Roles": [
+                        {
+                            "Ref": "oracleHostRole"
+                        }
+                    ]
+                }
+            },
+            "databaseSG": {
+                "Type": "AWS::EC2::SecurityGroup",
+                "Properties": {
+                    "GroupDescription": {
+                        "Fn::Sub": "${environmentName}-dbSG"
+                    },
+                    "SecurityGroupIngress": [
+                        {
+                            "IpProtocol": "tcp",
+                            "Description": "DB port from application",
+                            "FromPort": "1522",
+                            "ToPort": "1522",
+                            "SourceSecurityGroupId": {
+                                "Ref": "appSG"
+                            }
+                        }
+                    ],
+                    "SecurityGroupEgress": [
+                        {
+                            "IpProtocol": "-1",
+                            "FromPort": "-1",
+                            "ToPort": "-1",
+                            "Description": "Allow the database hosts to access resources wihtin the VPC",
+                            "CidrIp": {
+                                "Fn::ImportValue": {
+                                    "Fn::Sub": "${targetVPCStack}VPCCidr"
+                                }
+                            }
+                        }
+                    ],
+                    "VpcId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}VPC"
+                        }
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${environmentName}-dbSG"
+                            }
+                        }
+                    ]
+                }
+            },
+            "appSG": {
+                "Type": "AWS::EC2::SecurityGroup",
+                "Properties": {
+                    "GroupDescription": {
+                        "Fn::Sub": "${environmentName}-appSG"
+                    },
+                    "SecurityGroupIngress": [
+                        {
+                            "IpProtocol": "tcp",
+                            "Description": "Allow the application port to be accessed from the Load Balancer",
+                            "FromPort": "8001",
+                            "ToPort": "8001",
+                            "SourceSecurityGroupId": {
+                                "Ref": "appLBSG"
+                            }
+                        }
+                    ],
+                    "SecurityGroupEgress": [
+                        {
+                            "IpProtocol": "-1",
+                            "FromPort": "-1",
+                            "ToPort": "-1",
+                            "Description": "Allow the application hosts to access resources wihtin the VPC",
+                            "CidrIp": {
+                                "Fn::ImportValue": {
+                                    "Fn::Sub": "${targetVPCStack}VPCCidr"
+                                }
+                            }
+                        }
+                    ],
+                    "VpcId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}VPC"
+                        }
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${environmentName}-appSG"
+                            }
+                        }
+                    ]
+                }
+            },
+            "appLBSG": {
+                "Type": "AWS::EC2::SecurityGroup",
+                "Properties": {
+                    "GroupDescription": {
+                        "Fn::Sub": "${environmentName}-appLBSG"
+                    },
+                    "SecurityGroupIngress": [
+                        {
+                            "IpProtocol": "tcp",
+                            "Description": "Allow the load balancer to be accessed from anywhere",
+                            "FromPort": "443",
+                            "ToPort": "443",
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "SecurityGroupEgress": [
+                        {
+                            "IpProtocol": "-1",
+                            "FromPort": "-1",
+                            "ToPort": "-1",
+                            "Description": "Allow Load Balancer to use VPC resources",
+                            "CidrIp": {
+                                "Fn::ImportValue": {
+                                    "Fn::Sub": "${targetVPCStack}VPCCidr"
+                                }
+                            }
+                        }
+                    ],
+                    "VpcId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}VPC"
+                        }
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${environmentName}-appLBSG"
+                            }
+                        }
+                    ]
+                }
+            },
+            "databaseHost1": {
+                "Type": "AWS::EC2::Instance",
+                "Properties": {
+                    "KeyName": "cloudbldr-marketplace-london",
+                    "DisableApiTermination": "false",
+                    "SubnetId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}Priv-aza"
+                        }
+                    },
+                    "ImageId": {
+                        "Ref": "AMI"
+                    },
+                    "InstanceType": {
+                        "Ref": "dbSize"
+                    },
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/sda1",
+                            "Ebs": {
+                                "DeleteOnTermination": "true",
+                                "VolumeType": "gp2"
+                            }
+                        }
+                    ],
+                    "Monitoring": "true",
+                    "IamInstanceProfile": {
+                        "Ref": "oracleHostProfile"
+                    },
+                    "SecurityGroupIds": [
+                        {
+                            "Ref": "databaseSG"
+                        }
+                    ],
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub":[ "${hostnamePattern}d1.${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                            }
+                        }
+                    ],
+                    "UserData": {
+                        "Fn::Base64": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "#!/bin/bash -ex",
+                                    "\n",
+                                    "sudo hostnamectl  set-hostname ",
+                                    {
+                                        "Fn::Sub": [ "${hostnamePattern}d1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                                    },
+                                    "\n",
+                                    "sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts",
+                                    "\n",
+                                    "sudo /usr/bin/echo \"`/usr/bin/hostname -I` ",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}d1"
+                                    },
+                                    " ",
+                                    {
+                                        "Fn::Sub": ["${hostnamePattern}d1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                                    },
+                                    "\" >> /etc/hosts",
+                                    "\n",
+                                    "sudo /usr/bin/rm -rf /oracle/*", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/app", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/data", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/fra", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/oraInventory", "\n",
+                                    "sudo /usr/bin/echo inventory_loc=/oracle/oraInventory > /etc/oraInst.loc" ,"\n",
+                                    "sudo /usr/bin/echo inst_group=oinstall >> /etc/oraInst.loc" ,"\n",
+                                    "sudo /usr/bin/echo \\# stub oratab > /etc/oratab" ,"\n",
+                                    "sudo /usr/bin/echo ",
+                                    {
+                                        "Fn::ImportValue": 
+                                        {
+                                        "Fn::Sub": "${targetVPCStack}FSDNSName"
+                                        }
+                                    },
+                                    ":/fsx/",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}-appVol"
+                                    },
+                                    "   /oracle/app     nfs     rw,bg,hard,nointr,rsize=32768,wsize=32768,tcp,vers=3,timeo=600,actimeo=0 0 0 >> /etc/fstab",
+                                    "\n",
+                                    "sudo /usr/bin/echo ",
+                                    {
+                                        "Fn::ImportValue": 
+                                        {
+                                        "Fn::Sub": "${targetVPCStack}FSDNSName"
+                                        }
+                                    },
+                                    ":/fsx/",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}-dataVol"
+                                    },
+                                    "   /oracle/data     nfs     rw,bg,hard,nointr,rsize=32768,wsize=32768,tcp,actimeo=0,vers=3,timeo=600 0 0 >> /etc/fstab",
+                                    "\n",
+                                    "sudo /usr/bin/echo ",
+                                    {
+                                        "Fn::ImportValue": 
+                                        {
+                                        "Fn::Sub": "${targetVPCStack}FSDNSName"
+                                        }
+                                    },
+                                    ":/fsx/",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}-fraVol"
+                                    },
+                                    "   /oracle/fra     nfs     rw,bg,hard,nointr,rsize=32768,wsize=32768,tcp,actimeo=0,vers=3,timeo=600 0 0 >> /etc/fstab",
+                                    "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /oracle/*", "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /etc/oraInst.loc", "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /etc/oratab", "\n",
+                                    "sudo /usr/sbin/reboot now",
+                                    "\n"
+                                ]
+                            ]
+                        }
+                    }
+                }
+            },
+            "appHost1": {
+                "Type": "AWS::EC2::Instance",
+                "Properties": {
+                    "KeyName": "cloudbldr-marketplace-london",
+                    "DisableApiTermination": "false",
+                    "SubnetId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}Priv-aza"
+                        }
+                    },
+                    "ImageId": {
+                        "Ref": "AMI"
+                    },
+                    "InstanceType": {
+                        "Ref": "appSize"
+                    },
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/sda1",
+                            "Ebs": {
+                                "DeleteOnTermination": "true",
+                                "VolumeType": "gp2"
+                            }
+                        }
+                    ],
+                    "Monitoring": "true",
+                    "IamInstanceProfile": {
+                        "Ref": "oracleHostProfile"
+                    },
+                    "SecurityGroupIds": [
+                        {
+                            "Ref": "appSG"
+                        }
+                    ],
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": ["${hostnamePattern}a1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                            }
+                        }
+                    ],
+                    "UserData": {
+                        "Fn::Base64": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "#!/bin/bash -ex",
+                                    "\n",
+                                    "sudo /usr/bin/hostnamectl  set-hostname ",
+                                    {
+                                        "Fn::Sub": ["${hostnamePattern}a1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                                    },
+                                    "\n",
+                                    "sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts",
+                                    "\n",
+                                    "sudo /usr/bin/echo \"`/usr/bin/hostname -I` ",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}a1"
+                                    },
+                                    " ",
+                                    {
+                                        "Fn::Sub": ["${hostnamePattern}a1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                                    },
+                                    "\" >> /etc/hosts",
+                                    "\n",
+                                    "sudo /usr/bin/rm -rf /oracle/*", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/app", "\n",
+                                    "sudo /usr/bin/mkdir -p /oracle/oraInventory", "\n",
+                                    "sudo /usr/bin/echo inventory_loc=/oracle/oraInventory > /etc/oraInst.loc" ,"\n",
+                                    "sudo /usr/bin/echo inst_group=oinstall >> /etc/oraInst.loc" ,"\n",
+                                    "sudo /usr/bin/echo \\# stub oratab > /etc/oratab" ,"\n",
+                                    "sudo /usr/bin/echo ",
+                                    {
+                                        "Fn::ImportValue": 
+                                        {
+                                        "Fn::Sub": "${targetVPCStack}FSDNSName"
+                                        }
+                                    },
+                                    ":/fsx/",
+                                    {
+                                        "Fn::Sub": "${hostnamePattern}-appVol"
+                                    },
+                                    "   /oracle/app     nfs     rw,bg,hard,nointr,rsize=32768,wsize=32768,tcp,vers=3,timeo=600,actimeo=0 0 0 >> /etc/fstab",
+                                    "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /oracle/*", "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /etc/oraInst.loc", "\n",
+                                    "sudo /usr/bin/chown -R oracle:oinstall /etc/oratab", "\n",
+                                    "sudo /usr/sbin/reboot now",
+                                    "\n"
+                                ]
+                            ]
+                        }
+                    }
+                }
+            },
+            "databaseHost1PrivateDNSEntry": {
+                "Type": "AWS::Route53::RecordSet",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": ["${hostnamePattern}d1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                    },
+                    "Type": "A",
+                    "ResourceRecords": [
+                        {
+                            "Fn::GetAtt": [
+                                "databaseHost1",
+                                "PrivateIp"
+                            ]
+                        }
+                    ],
+                    "Comment": "DNS record for Database Tier Instance",
+                    "HostedZoneId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}PrivateDNS"
+                        }
+                    },
+                    "TTL": "300"
+                }
+            },
+            "appLoadBalancer": {
+                "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": "${hostnamePattern}-LB"
+                    },
+                    "Subnets": [
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${targetVPCStack}Priv-aza"
+                            }
+                        },
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${targetVPCStack}Priv-azb"
+                            }
+                        }
+                    ],
+                    "SecurityGroups": [
+                        {
+                            "Ref": "appLBSG"
+                        }
+                    ],
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": ["${hostnamePattern}..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                            }
+                        }
+                    ]
+                }
+            },
+            "appLoadBalancerListener": {
+                "Type": "AWS::ElasticLoadBalancingV2::Listener",
+                "Properties": {
+                    "LoadBalancerArn": {
+                        "Ref": "appLoadBalancer"
+                    },
+                    "Port": 80,
+                    "Protocol": "HTTP",
+                    "DefaultActions": [
+                        {
+                            "Type": "forward",
+                            "TargetGroupArn": {
+                                "Ref": "appLoadBalancerTargetGroup"
+                            }
+                        }
+                    ]
+                }
+            },
+            "appLoadBalancerTargetGroup": {
+                "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": "${hostnamePattern}-TG"
+                    },
+                    "VpcId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}VPC"
+                        }
+                    },
+                    "Port": "8001",
+                    "Protocol": "HTTP",
+                    "TargetGroupAttributes": [
+                        {
+                            "Key": "stickiness.enabled",
+                            "Value": true
+                        },
+                        {
+                            "Key": "stickiness.type",
+                            "Value": "lb_cookie"
+                        }
+                    ],
+                    "Targets": [
+                        {
+                            "Id": {
+                                "Ref": "appHost1"
+                            },
+                            "Port": "8001"
+                        }
+                    ]
+                }
+            },
+            "appHost1PrivateDNSEntry": {
+                "Type": "AWS::Route53::RecordSet",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": ["${hostnamePattern}a1..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                    },
+                    "Type": "A",
+                    "ResourceRecords": [
+                        {
+                            "Fn::GetAtt": [
+                                "databaseHost1",
+                                "PrivateIp"
+                            ]
+                        }
+                    ],
+                    "Comment": "DNS record for Application Tier Instance",
+                    "HostedZoneId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}PrivateDNS"
+                        }
+                    },
+                    "TTL": "300"
+                }
+            },
+            "appLoadBalancerPublicDNS": {
+                "Type": "AWS::Route53::RecordSet",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": ["${hostnamePattern}..${DOMAIN}", {"DOMAIN": {"Fn::ImportValue": {"Fn::Sub": "${targetVPCStack}DomainName"}}} ]
+                    },
+                    "Type": "A",
+                    "AliasTarget": {
+                        "DNSName": {
+                            "Fn::GetAtt": [
+                                "appLoadBalancer",
+                                "DNSName"
+                            ]
+                        },
+                        "HostedZoneId": {
+                            "Fn::GetAtt": [
+                                "appLoadBalancer",
+                                "CanonicalHostedZoneID"
+                            ]
+                        },
+                        "EvaluateTargetHealth": false
+                    },
+                    "Comment": "DNS record for Load Balancer",
+                    "HostedZoneId": {
+                        "Fn::ImportValue": {
+                            "Fn::Sub": "${targetVPCStack}PublicDNS"
+                        }
+                    }
+                }
+            },
+            "appBinariesVol": {
+                "Type": "AWS::FSx::Volume",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": "${hostnamePattern}-appVol"
+                    },
+                    "VolumeType" : "OPENZFS",
+                    "OpenZFSConfiguration": {
+                        "DataCompressionType": "LZ4",
+                        "NfsExports": [
+                            {
+                                "ClientConfigurations": [{
+                                    "Clients": {
+                                        "Fn::GetAtt": [
+                                            "databaseHost1",
+                                            "PrivateIp"
+                                        ]
+                                    },
+                                    "Options": [ "rw","crossmnt","no_root_squash"  ]
+                                },
+                                {
+                                    "Clients": {
+                                        "Fn::GetAtt": [
+                                            "appHost1",
+                                            "PrivateIp"
+                                        ]
+                                    },
+                                    "Options": [ "rw","crossmnt","no_root_squash" ]
+                                }]
+                            }
+                        ],
+                        "ParentVolumeId": 
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${targetVPCStack}RootVolumeID"
+                            }
+                        }
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${hostnamePattern}-appVol"
+                            }
+                        }
+                    ]
+                }
+            },
+            "dbDataVol": {
+                "Type": "AWS::FSx::Volume",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": "${hostnamePattern}-dataVol"
+                    },
+                    "VolumeType" : "OPENZFS",
+                    "OpenZFSConfiguration": {
+                        "DataCompressionType": "LZ4",
+                        "NfsExports": [
+                            {
+                                "ClientConfigurations": [{
+                                    "Clients": {
+                                        "Fn::GetAtt": [
+                                            "databaseHost1",
+                                            "PrivateIp"
+                                        ]
+                                    },
+                                    "Options": [ "rw","crossmnt","no_root_squash" ]
+                                }]
+                            }
+                        ],
+                        "ParentVolumeId": 
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${targetVPCStack}RootVolumeID"
+                            }
+                        },
+                        "RecordSizeKiB": 8
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${hostnamePattern}-dataVol"
+                            }
+                        }
+                    ]
+                }
+            },
+            "dbFraVol": {
+                "Type": "AWS::FSx::Volume",
+                "Properties": {
+                    "Name": {
+                        "Fn::Sub": "${hostnamePattern}-fraVol"
+                    },
+                    "VolumeType" : "OPENZFS",
+                    "OpenZFSConfiguration": {
+                        "DataCompressionType": "LZ4",
+                        "NfsExports": [
+                            {
+                                "ClientConfigurations": [{
+                                    "Clients": {
+                                        "Fn::GetAtt": [
+                                            "databaseHost1",
+                                            "PrivateIp"
+                                        ]
+                                    },
+                                    "Options": [ "rw","crossmnt","no_root_squash" ]
+                                }]
+                            }
+                        ],
+                        "ParentVolumeId": 
+                        {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${targetVPCStack}RootVolumeID"
+                            }
+                        },
+                        "RecordSizeKiB": 8
+                    },
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": {
+                                "Fn::Sub": "${hostnamePattern}-fraVol"
+                            }
+                        }
+                    ]
+                }
             }
-          },
-		  "appHost1PrivateDNSEntry": {
-            "Type": "AWS::Route53::RecordSet",
-            "Properties": {
-              "Name": { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" },
-              "Type": "A",
-              "ResourceRecords": [
-                {
-                    "Fn::GetAtt": ["databaseHost1", "PrivateIp"]
-                }
-              ],
-              "Comment": "DNS record for Application Tier Instance",
-              "HostedZoneId": {
-                "Ref" : "PrivDNS"
-              },
-              "TTL": "300"
-            }
-          },
-			"appLoadBalancer": {
-				"Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
-				"Properties" : {
-					"Name" : {
-						"Fn::Sub": "${hostnamePattern}-LB"
-					},
-					"Subnets" : [{ "Ref" : "puba" }, { "Ref" : "pubb" }],
-					"SecurityGroups" : [ {"Ref" : "appLBSG"} ],
-					"Tags" : [ { "Key" : "Name", "Value" : {
-						"Fn::Sub": "${hostnamePattern}.${DNSName}"
-					}} ]
-				}
-			},
-			"appLoadBalancerListener": {
-				"Type" : "AWS::ElasticLoadBalancingV2::Listener",
-				"Properties" : {
-					"LoadBalancerArn" : { "Ref" : "appLoadBalancer" },
-					"Port" : 80,
-					"Protocol" : "HTTP",
-					"DefaultActions" : [ {
-						"Type" : "forward",
-						"TargetGroupArn" : { "Ref" : "appLoadBalancerTargetGroup" }
-					} ]
-				}
-			},
-			"appLoadBalancerTargetGroup" : {
-				"Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
-				"Properties" : {
-					"Name" : {
-						"Fn::Sub": "${hostnamePattern}-TG"
-					},
-					"VpcId" : { "Ref" : "VPC" },
-					"Port" : "8001",
-					"Protocol" : "HTTP",
-					"TargetGroupAttributes" : [ { "Key" : "stickiness.enabled", "Value" : true }, { "Key" : "stickiness.type", "Value" : "lb_cookie" } ],
-					"Targets" : [ { "Id" : { "Ref" : "appHost1" } ,  "Port" : "8001" } ]
-				}
-			},
-			"appLoadBalancerPublicDNS": {
-				"Type": "AWS::Route53::RecordSet",
-				"Properties": {
-				  "Name": { "Fn::Sub": "${hostnamePattern}.${DNSName}" },
-				  "Type": "A",
-				  "AliasTarget": {
-						"DNSName" : { "Fn::GetAtt" : ["appLoadBalancer","DNSName"] },
-						"HostedZoneId" : { "Fn::GetAtt" : ["appLoadBalancer", "CanonicalHostedZoneID"] },
-						"EvaluateTargetHealth": false
-					},
-				  "Comment": "DNS record for Load Balancer",
-				  "HostedZoneId": {
-					"Ref" : "PubDNS"
-				  }
-				}
-			  },
-              "appBinariesVol": {
-                "Type": "AWS::FSx::FileSystem",
-                "Properties": {
-                   "FileSystemType": "OPENZFS",
-                   "StorageCapacity": 1024,
-                   "StorageType": "SSD",
-                   "SubnetIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-azb" } }
-                   ],
-                   "SecurityGroupIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}storageSG" } }
-                   ],
-                   "OpenZFSConfiguration": {
-                      "AutomaticBackupRetentionDays": 3,
-                      "CopyTagsToBackups" : true,
-                      "DailyAutomaticBackupStartTime": "07:00",
-                      "DeploymentType": "MULTI_AZ_1",
-                      "DiskIopsConfiguration": {
-                         "Mode": "AUTOMATIC"
-                      },
-                      "PreferredSubnetId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                      "RouteTableIds": [
-                        { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}PrivateRTB" } }
-                      ],
-                      "ThroughputCapacity": 320,
-                      "WeeklyMaintenanceStartTime": "4:16:30"
-                   },
-                   "Tags": [
-                      {
-                         "Key": "Name",
-                         "Value": {
-                            "Fn::Sub": "${hostnamePattern}-appVol"
-                        }
-                      }
-                   ]
-                }
-             },
-             "appDataVol": {
-                "Type": "AWS::FSx::FileSystem",
-                "Properties": {
-                   "FileSystemType": "OPENZFS",
-                   "StorageCapacity": 1024,
-                   "StorageType": "SSD",
-                   "SubnetIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-azb" } }
-                   ],
-                   "SecurityGroupIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}storageSG" } }
-                   ],
-                   "OpenZFSConfiguration": {
-                      "AutomaticBackupRetentionDays": 3,
-                      "CopyTagsToBackups" : true,
-                      "DailyAutomaticBackupStartTime": "07:00",
-                      "DeploymentType": "MULTI_AZ_1",
-                      "DiskIopsConfiguration": {
-                         "Mode": "AUTOMATIC"
-                      },
-                      "PreferredSubnetId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                      "RouteTableIds": [
-                        { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}PrivateRTB" } }
-                      ],
-                      "ThroughputCapacity": 320,
-                      "WeeklyMaintenanceStartTime": "4:16:30"
-                   },
-                   "Tags": [
-                      {
-                         "Key": "Name",
-                         "Value": {
-                            "Fn::Sub": "${hostnamePattern}-dataVol"
-                        }
-                      }
-                   ]
-                }
-             },
-             "appFraVol": {
-                "Type": "AWS::FSx::FileSystem",
-                "Properties": {
-                   "FileSystemType": "OPENZFS",
-                   "StorageCapacity": 1024,
-                   "StorageType": "SSD",
-                   "SubnetIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-azb" } }
-                   ],
-                   "SecurityGroupIds": [
-                    { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}storageSG" } }
-                   ],
-                   "OpenZFSConfiguration": {
-                      "AutomaticBackupRetentionDays": 3,
-                      "CopyTagsToBackups" : true,
-                      "DailyAutomaticBackupStartTime": "07:00",
-                      "DeploymentType": "MULTI_AZ_1",
-                      "DiskIopsConfiguration": {
-                         "Mode": "AUTOMATIC"
-                      },
-                      "PreferredSubnetId": { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}Priv-aza" } },
-                      "RouteTableIds": [
-                        { "Fn::ImportValue": { "Fn::Sub": "${targetVPCStack}PrivateRTB" } }
-                      ],
-                      "ThroughputCapacity": 320,
-                      "WeeklyMaintenanceStartTime": "4:16:30"
-                   },
-                   "Tags": [
-                      {
-                         "Key": "Name",
-                         "Value": {
-                            "Fn::Sub": "${hostnamePattern}-fraVol"
-                        }
-                      }
-                   ]
-                }
-             }
-
     },
-    "Outputs": {
-
-    }
+    "Outputs": {}
 }

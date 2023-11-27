@@ -5,19 +5,13 @@
 
     },
     "Parameters": {
-		"VPCStackName": {
-			"Description": "VPC Name Prefix for all Objects",
-			"Default" : "MPLACE",
-			"Type": "String"
-		},
-		"DNSName": {
+		"domainName": {
 			"Description": "Private domain for VPC",
 			"Default" : "oracle.cloudbldr.uk",
 			"Type": "String"
-
 		},
 		"AMI": {
-			"Description": "AMI used to laucnh the instances",
+			"Description": "Cloudbldr AMI for e-business suite",
 			"Default" : "ami-0107fd7e5158b0161",
 			"Type": "String"
         },
@@ -37,7 +31,7 @@
 			"Type": "String"
         },
 		"VPCCIDR": {
-			"Description" : "Class C address block for the VPC",
+			"Description" : "Class C start address for the VPC",
 			"Default" : "10.20.32.0",
 			"Type" : "String"
 		}
@@ -60,7 +54,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "VPC"]]
 					}
 				}]
@@ -85,7 +79,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PrivatePrimary"]]
 					}
 				}]
@@ -110,7 +104,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PrivateSecondary"]]
 					}
 				}]
@@ -126,7 +120,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PrivateRTB"]]
 					}
 				}]
@@ -168,7 +162,7 @@
 						"Key": "Name",
 						"Value": {
 							"Fn::Join": ["", [{
-								"Ref": "VPCStackName"
+								"Ref": "AWS::StackName"
 							}, "ACL"]]
 						}
 					}
@@ -226,7 +220,7 @@
 			"Type": "AWS::Route53::HostedZone",
 			"Properties": {
 				"Name": {
-					"Ref": "DNSName"
+					"Ref": "domainName"
 				},
 				"VPCs": [{
 					"VPCId": {
@@ -239,14 +233,14 @@
 				"HostedZoneConfig": {
 					"Comment": {
 						"Fn::Join": ["", ["Private Hosted zone for ", {
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}]]
 					}
 				},
 				"HostedZoneTags": [{
 					"Key": "Name",
 					"Value": {
-						"Ref": "DNSName"
+						"Ref": "domainName"
 					}
 				}]
 			}
@@ -255,19 +249,19 @@
 			"Type": "AWS::Route53::HostedZone",
 			"Properties": {
 				"Name": {
-					"Ref": "DNSName"
+					"Ref": "domainName"
 				},
 				"HostedZoneConfig": {
 					"Comment": {
 						"Fn::Join": ["", ["Public Hosted zone for ", {
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}]]
 					}
 				},
 				"HostedZoneTags": [{
 					"Key": "Name",
 					"Value": {
-						"Ref": "DNSName"
+						"Ref": "domainName"
 					}
 				}]
 			}
@@ -391,7 +385,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PublicPrimary"]]
 					}
 				}]
@@ -416,7 +410,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PublicSecondary"]]
 					}
 				}]
@@ -429,7 +423,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "IGW"]]
 					}
 				}]
@@ -486,7 +480,7 @@
 					"Key": "Name",
 					"Value": {
 						"Fn::Join": ["", [{
-							"Ref": "VPCStackName"
+							"Ref": "AWS::StackName"
 						}, "PublicRTB"]]
 					}
 				}]
@@ -567,7 +561,7 @@
                     "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
                     "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"],
 				"RoleName": {
-					"Fn::Sub": "${VPCStackName}-instance-role"
+					"Fn::Sub": "${AWS::StackName}-instance-role"
 				}
 			}
 		},
@@ -584,7 +578,7 @@
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
 				"GroupDescription": {
-					"Fn::Sub": "${VPCStackName}-dbSG"
+					"Fn::Sub": "${AWS::StackName}-dbSG"
 				},
 				"SecurityGroupIngress": [{
 					"IpProtocol": "tcp",
@@ -606,7 +600,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${VPCStackName}-dbSG"
+						"Fn::Sub": "${AWS::StackName}-dbSG"
 					}
 				}]
 			}
@@ -615,7 +609,7 @@
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
 				"GroupDescription": {
-					"Fn::Sub": "${VPCStackName}-appSG"
+					"Fn::Sub": "${AWS::StackName}-appSG"
 				},
 				"SecurityGroupIngress": [{
 					"IpProtocol": "tcp",
@@ -637,7 +631,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${VPCStackName}-appSG"
+						"Fn::Sub": "${AWS::StackName}-appSG"
 					}
 				}]
 			}
@@ -646,7 +640,7 @@
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
 				"GroupDescription": {
-					"Fn::Sub": "${VPCStackName}-appLBSG"
+					"Fn::Sub": "${AWS::StackName}-appLBSG"
 				},
 				"SecurityGroupIngress": [{
 					"IpProtocol": "tcp",
@@ -666,7 +660,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${VPCStackName}-appLBSG"
+						"Fn::Sub": "${AWS::StackName}-appLBSG"
 					}
 				}]
 			}
@@ -675,7 +669,7 @@
 			"Type": "AWS::EC2::SecurityGroup",
 			"Properties": {
 				"GroupDescription": {
-					"Fn::Sub": "${VPCStackName}-endpointSG"
+					"Fn::Sub": "${AWS::StackName}-endpointSG"
 				},
 				"SecurityGroupIngress": [{
 					"IpProtocol": "tcp",
@@ -694,7 +688,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${VPCStackName}-endpointSG"
+						"Fn::Sub": "${AWS::StackName}-endpointSG"
 					}
 				}]
 			}
@@ -720,7 +714,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${hostnamePattern}d1.${DNSName}"
+						"Fn::Sub": "${hostnamePattern}d1.${domainName}"
 					}
 				}],
 				"UserData": {
@@ -728,9 +722,9 @@
 						"Fn::Join": [
 							"", [
 								"#!/bin/bash -ex", "\n",
-                                "sudo hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" },"\n",
+                                "sudo hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" },"\n",
 								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
-								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\" >> /etc/hosts", "\n",
+								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\" >> /etc/hosts", "\n",
 								"sudo /usr/sbin/reboot now", "\n"
 							]
 						]
@@ -759,7 +753,7 @@
 				"Tags": [{
 					"Key": "Name",
 					"Value": {
-						"Fn::Sub": "${hostnamePattern}a1.${DNSName}"
+						"Fn::Sub": "${hostnamePattern}a1.${domainName}"
 					}
 				}],
 				"UserData": {
@@ -767,9 +761,9 @@
 						"Fn::Join": [
 							"", [
 								"#!/bin/bash -ex", "\n",
-                                "sudo /usr/bin/hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\n",
+                                "sudo /usr/bin/hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\n",
 								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
-								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" }, "\" >> /etc/hosts", "\n",
+								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\" >> /etc/hosts", "\n",
 								"sudo /usr/sbin/reboot now", "\n"
 							]
 						]
@@ -780,7 +774,7 @@
 		"databaseHost1PrivateDNSEntry": {
             "Type": "AWS::Route53::RecordSet",
             "Properties": {
-              "Name": { "Fn::Sub": "${hostnamePattern}d1.${DNSName}" },
+              "Name": { "Fn::Sub": "${hostnamePattern}d1.${domainName}" },
               "Type": "A",
               "ResourceRecords": [
                 {
@@ -797,7 +791,7 @@
 		  "appHost1PrivateDNSEntry": {
             "Type": "AWS::Route53::RecordSet",
             "Properties": {
-              "Name": { "Fn::Sub": "${hostnamePattern}a1.${DNSName}" },
+              "Name": { "Fn::Sub": "${hostnamePattern}a1.${domainName}" },
               "Type": "A",
               "ResourceRecords": [
                 {
@@ -820,7 +814,7 @@
 					"Subnets" : [{ "Ref" : "puba" }, { "Ref" : "pubb" }],
 					"SecurityGroups" : [ {"Ref" : "appLBSG"} ],
 					"Tags" : [ { "Key" : "Name", "Value" : {
-						"Fn::Sub": "${hostnamePattern}.${DNSName}"
+						"Fn::Sub": "${hostnamePattern}.${domainName}"
 					}} ]
 				}
 			},
@@ -852,7 +846,7 @@
 			"appLoadBalancerPublicDNS": {
 				"Type": "AWS::Route53::RecordSet",
 				"Properties": {
-				  "Name": { "Fn::Sub": "${hostnamePattern}.${DNSName}" },
+				  "Name": { "Fn::Sub": "${hostnamePattern}.${domainName}" },
 				  "Type": "A",
 				  "AliasTarget": {
 						"DNSName" : { "Fn::GetAtt" : ["appLoadBalancer","DNSName"] },

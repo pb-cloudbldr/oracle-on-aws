@@ -1,2 +1,2 @@
 # oracle-on-aws
-Templates and code to run Oracle on AWS
+Templates, cdk code and host code to run Oracle on AWS

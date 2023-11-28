@@ -20,9 +20,19 @@
 			"Default" : "t3.large",
 			"Type": "String"
         },
+		"dbStorage": {
+			"Description": "Size of volume to attach for datafiles and binaries",
+			"Default" : "100",
+			"Type": "String"
+        },
 		"appSize": {
 			"Description": "instance class used for Application instance",
 			"Default" : "t3.large",
+			"Type": "String"
+        },
+		"appStorage": {
+			"Description": "Size of volume to attach for application",
+			"Default" : "100",
 			"Type": "String"
         },
 		"hostnamePattern": {
@@ -693,6 +703,35 @@
 				}]
 			}
 		},
+		"databaseStorage": {
+			"Type": "AWS::EC2::Volume",
+			"Properties": {
+				"Size": { "Ref" : "appStorage" },
+				"Encrypted": "true",
+				"VolumeType": "gp3",
+				"AvailabilityZone": {
+					"Fn::GetAtt": ["databaseHost1", "AvailabilityZone"]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${hostnamePattern}_database"
+					}
+				}]
+			}
+		},
+		"attachDatabaseStorage": {
+			"Type": "AWS::EC2::VolumeAttachment",
+			"Properties": {
+				"InstanceId": {
+					"Ref": "databaseHost1"
+				},
+				"VolumeId": {
+					"Ref": "databaseStorage"
+				},
+				"Device": "/dev/sdf"
+			}
+		},
 		"databaseHost1": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
@@ -725,6 +764,11 @@
                                 "sudo hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" },"\n",
 								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
 								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\" >> /etc/hosts", "\n",
+								"sudo /usr/sbin/mkfs -t ext4 /dev/$(/usr/bin/lsblk --fs  -o NAME,FSTYPE | /usr/bin/tail -n 1)", "\n",
+								"sudo /usr/bin/echo \"UUID=$(/usr/sbin/blkid -s UUID -o value /dev/$(/usr/bin/lsblk --fs  -o NAME,FSTYPE | /usr/bin/tail -n 1))      /oracle/db      ext4    defaults        0 0\" >> /etc/fstab", "\n",
+								"sudo /usr/bin/mount -a", "\n",
+								"sudo /usr/bin/chown -R oracle:oinstall /oracle/db", "\n",
+								"sudo /usr/bin/rm -rf /oracle/oraInvenory/*", "\n",
 								"sudo /usr/sbin/reboot now", "\n"
 							]
 						]
@@ -732,6 +776,35 @@
 				}
 			}
         },
+		"applicationStorage": {
+			"Type": "AWS::EC2::Volume",
+			"Properties": {
+				"Size": { "Ref" : "appStorage" },
+				"Encrypted": "true",
+				"VolumeType": "gp3",
+				"AvailabilityZone": {
+					"Fn::GetAtt": ["appHost1", "AvailabilityZone"]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Sub": "${hostnamePattern}_application"
+					}
+				}]
+			}
+		},
+		"attachApplicationStorage": {
+			"Type": "AWS::EC2::VolumeAttachment",
+			"Properties": {
+				"InstanceId": {
+					"Ref": "appHost1"
+				},
+				"VolumeId": {
+					"Ref": "applicationStorage"
+				},
+				"Device": "/dev/sdf"
+			}
+		},
 		"appHost1": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
@@ -764,6 +837,11 @@
                                 "sudo /usr/bin/hostnamectl  set-hostname ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\n",
 								"sudo /usr/bin/echo \"127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4\" > /etc/hosts", "\n",
 								"sudo /usr/bin/echo \"`/usr/bin/hostname -I` ", { "Fn::Sub": "${hostnamePattern}a1" } ," ", { "Fn::Sub": "${hostnamePattern}a1.${domainName}" }, "\" >> /etc/hosts", "\n",
+								"sudo /usr/sbin/mkfs -t ext4 /dev/$(/usr/bin/lsblk --fs  -o NAME,FSTYPE | /usr/bin/tail -n 1)", "\n",
+								"sudo /usr/bin/echo \"UUID=$(/usr/sbin/blkid -s UUID -o value /dev/$(/usr/bin/lsblk --fs  -o NAME,FSTYPE | /usr/bin/tail -n 1))      /oracle/app      ext4    defaults        0 0\" >> /etc/fstab", "\n",
+								"sudo /usr/bin/mount -a", "\n",
+								"sudo /usr/bin/chown -R oracle:oinstall /oracle/app", "\n",
+								"sudo /usr/bin/rm -rf /oracle/oraInvenory/*", "\n",
 								"sudo /usr/sbin/reboot now", "\n"
 							]
 						]

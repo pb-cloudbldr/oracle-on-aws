@@ -15,6 +15,11 @@
 			"Default" : "ami-0107fd7e5158b0161",
 			"Type": "String"
         },
+		"hostKeyName": {
+			"Description": "Name for existing Keypair for instance access",
+			"Default" : "hostkey-name",
+			"Type": "String"
+        },
 		"dbSize": {
 			"Description": "instance class used for Database instance",
 			"Default" : "t3.large",
@@ -742,7 +747,7 @@
 		"databaseHost1": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
-				"KeyName": "cloudbldr-marketplace-london",
+				"KeyName": {"Ref": "hostKeyName"},
 				"DisableApiTermination": "false",
 				"SubnetId": {"Ref" : "priva"},
 				"ImageId": {"Ref": "AMI"},
@@ -751,7 +756,7 @@
                 	"DeviceName" : "/dev/sda1",
                     "Ebs" : {
                     	"DeleteOnTermination" : "true",
-                    	"VolumeType" : "gp2"
+                    	"VolumeType" : "gp3"
                 	}
                	}],
 				"Monitoring": "true",
@@ -815,7 +820,7 @@
 		"appHost1": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
-				"KeyName": "cloudbldr-marketplace-london",
+				"KeyName": {"Ref": "hostKeyName"},
 				"DisableApiTermination": "false",
 				"SubnetId": {"Ref" : "priva"},
 				"ImageId": {"Ref": "AMI"},
@@ -824,7 +829,7 @@
                 	"DeviceName" : "/dev/sda1",
                     "Ebs" : {
                     	"DeleteOnTermination" : "true",
-                    	"VolumeType" : "gp2"
+                    	"VolumeType" : "gp3"
                 	}
                	}],
 				"Monitoring": "true",
